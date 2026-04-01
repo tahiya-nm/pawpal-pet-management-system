@@ -4,8 +4,21 @@
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
+PawPal+ is designed around three core user actions that drive the entire system:
+
+1. **Add a pet** — The user enters basic owner and pet information (owner name, pet name, species, and how many minutes per day are available for care). This data seeds the scheduler with the time budget it works within.
+
+2. **Add and manage care tasks** — The user creates individual tasks such as walks, feeding, medications, grooming, or enrichment activities. Each task has a title, a duration in minutes, and a priority level (e.g., high / medium / low). Tasks can be added, edited, or removed at any time.
+
+3. **Generate and view today's plan** — The user triggers schedule generation. The system selects and orders tasks based on priority and available time, then displays the resulting daily plan alongside a plain-language explanation of why each task was included or excluded (e.g., "Medication was scheduled first because it is high priority" or "Extended walk was skipped — not enough time remaining").
+
+These three actions map to four natural classes: `Owner` (holds owner info and daily time budget), `Pet` (holds pet info and its task list), `Task` (title, duration, priority), and `Scheduler` (takes an owner + pet and returns an ordered plan with reasoning).
+
 - What classes did you include, and what responsibilities did you assign to each?
+    - `Owner`: Stores owner name and daily time budget.
+    - `Pet`: Stores pet name, species, and list of care tasks.
+    - `Task`: Represents a care task with title, duration, and priority.
+    - `Scheduler`: Contains the logic to generate a daily care plan based on the owner's time budget and the pet's tasks, while providing explanations for scheduling decisions.
 
 **b. Design changes**
 
