@@ -6,24 +6,32 @@
 
 PawPal+ is designed around three core user actions that drive the entire system:
 
-1. **Add a pet** — The user enters basic owner and pet information (owner name, pet name, species, and how many minutes per day are available for care). This data seeds the scheduler with the time budget it works within.
+1. **Add a pet** — The user enters basic owner and pet information (owner name, pet name, species, and how many minutes per day are available for care). An owner can have multiple pets; the daily time budget is shared across all of them.
 
-2. **Add and manage care tasks** — The user creates individual tasks such as walks, feeding, medications, grooming, or enrichment activities. Each task has a title, a duration in minutes, and a priority level (e.g., high / medium / low). Tasks can be added, edited, or removed at any time.
+2. **Add and manage care tasks** — The user creates individual tasks such as walks, feeding, medications, grooming, or enrichment activities. Each task has a title, a duration in minutes, and a priority level (`Priority.HIGH`, `Priority.MEDIUM`, or `Priority.LOW`). Tasks can be added or removed at any time.
 
-3. **Generate and view today's plan** — The user triggers schedule generation. The system selects and orders tasks based on priority and available time, then displays the resulting daily plan alongside a plain-language explanation of why each task was included or excluded (e.g., "Medication was scheduled first because it is high priority" or "Extended walk was skipped — not enough time remaining").
+3. **Generate and view today's plan** — The user triggers schedule generation. The system collects tasks across all of the owner's pets, selects and orders them based on priority and shared available time, then displays the resulting daily plan alongside a plain-language explanation of why each task was included or excluded (e.g., "Medication was scheduled first because it is high priority" or "Extended walk was skipped — not enough time remaining").
 
-These three actions map to four natural classes: `Owner` (holds owner info and daily time budget), `Pet` (holds pet info and its task list), `Task` (title, duration, priority), and `Scheduler` (takes an owner + pet and returns an ordered plan with reasoning).
+These three actions map to five classes: `Owner` (holds owner info, the shared daily time budget, and a list of pets), `Pet` (holds pet info and its task list), `Task` (title, duration, priority), `Scheduler` (takes an owner and produces a plan across all their pets), and `Plan` (the structured output of the scheduler).
 
 - What classes did you include, and what responsibilities did you assign to each?
-    - `Owner`: Stores owner name and daily time budget.
-    - `Pet`: Stores pet name, species, and list of care tasks.
-    - `Task`: Represents a care task with title, duration, and priority.
-    - `Scheduler`: Contains the logic to generate a daily care plan based on the owner's time budget and the pet's tasks, while providing explanations for scheduling decisions.
+    - `Owner`: Stores owner name, shared daily time budget (`available_minutes`), and a list of `Pet` objects. Has an `add_pet()` method. The budget is intentionally shared across all pets so that scheduling two pets doesn't accidentally double-count available time.
+    - `Pet`: Stores pet name and species, and owns a private list of care tasks (`_tasks`). Exposes `add_task()`, `remove_task()`, and `get_tasks()` to control access to the task list. Making `_tasks` private enforces that all mutation goes through these methods.
+    - `Task`: Represents a single care activity with a title, duration in minutes, and a `Priority` enum value. Uses a `Priority` enum (instead of a raw string) to prevent invalid values like `"urgent"` or `"HIGH"` from silently breaking the sort. Has a `priority_value()` method that returns the enum's numeric value for sorting.
+    - `Plan`: The output of the scheduler. References the `Owner` it was built for (so `summary()` can display context like the owner's name and budget). Holds two lists — scheduled and skipped tasks — each as `(Pet, Task, reason)` tuples so it's clear which pet each task belongs to, plus the total time used.
+    - `Scheduler`: Contains the scheduling logic. Takes only an `Owner` (not a separate `Pet`) and iterates over `owner.pets` to collect all tasks into a single shared pool. Sorts by priority, fits as many as possible within `owner.available_minutes`, and returns a `Plan` with reasoning for each decision. Taking the owner (rather than a single pet) is what makes the shared budget work correctly.
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+Yes, the design changed in four ways after reviewing the skeleton for missing relationships and logic gaps.
+
+1. **`Owner` gained a `pets` list and `add_pet()`.** The original design had no link between `Owner` and `Pet` — they were only joined inside `Scheduler`. Adding `pets: list[Pet]` makes the ownership relationship explicit in the model itself.
+
+2. **`Scheduler` takes only `Owner`, not `Owner` + `Pet`.** The original single-pet design would apply the full time budget to each pet independently, effectively doubling it for owners with multiple pets. Taking only `Owner` and iterating `owner.pets` puts all tasks into one shared pool under a single budget.
+
+3. **`Plan` now holds an `Owner` reference and `(Pet, Task, reason)` tuples.** The original `(Task, reason)` tuples had no pet context, and `Plan` had no way to know whose plan it was. Both are needed for `summary()` to produce meaningful output when multiple pets are involved.
+
+4. **`priority` changed from `str` to a `Priority` enum.** Raw strings allow invalid values like `"urgent"` to silently reach `priority_value()` and break sorting. An enum makes invalid priorities a hard error at construction time.
 
 ---
 
