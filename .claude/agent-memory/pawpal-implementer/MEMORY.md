@@ -1,0 +1,1 @@
+- [PawPal system class structure](project_structure.md) — attribute names, Priority enum values, Plan constructor, Scheduler algorithm details
